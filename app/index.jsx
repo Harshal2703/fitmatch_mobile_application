@@ -1,53 +1,62 @@
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useState } from 'react';
-import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import dgram from 'react-native-udp'
-
+import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import dgram from 'react-native-udp';
 
 export default function Index() {
   const [permission, requestPermission] = useCameraPermissions();
-  const [cameraFrontBack, setCameraFrontBack] = useState('front')
-  const [cameraOnOff, setCameraOnOff] = useState(false)
+  const [cameraFrontBack, setCameraFrontBack] = useState('front');
+  const [cameraOnOff, setCameraOnOff] = useState(false);
+  const [message, setMessage] = useState('');
 
   const toggleCameraFrontBack = () => {
-    if (cameraFrontBack == "front") {
-      setCameraFrontBack('back')
-    } else {
-      setCameraFrontBack('front')
-    }
-  }
+    setCameraFrontBack(cameraFrontBack === 'front' ? 'back' : 'front');
+  };
 
   const toggleCameraOnOff = () => {
-    if (cameraOnOff == false) {
-      setCameraOnOff(true)
-    } else {
-      setCameraOnOff(false)
+    setCameraOnOff(!cameraOnOff);
+  };
+
+  const sendMessage = () => {
+    try {
+      const socket = dgram.createSocket('udp4');
+      const messageString = String(message);
+      socket.send(messageString, undefined, undefined, 5000, '192.168.0.102', (err) => {
+        if (err) console.log(err);
+        else console.log('Message sent:', message);
+        socket.close();
+      });
+    } catch (error) {
+      console.log(error);
     }
-  }
+  };
 
   if (!permission) {
-    // Camera permissions are still loading.
     return <View />;
   }
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet.
     return (
       <View style={styles.container}>
         <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
+        <Button onPress={requestPermission} title="Grant Permission" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {cameraOnOff && (<CameraView style={styles.camera} facing={cameraFrontBack}>
-      </CameraView>)}
-      <Button onPress={toggleCameraOnOff} title="camera switchhhh" ></Button>
-      <Button onPress={toggleCameraFrontBack} title="toggle camera" ></Button>
+      {cameraOnOff && <CameraView style={styles.camera} facing={cameraFrontBack} />}
+      <Button onPress={toggleCameraOnOff} title="Toggle Camera" />
+      <Button onPress={toggleCameraFrontBack} title="Switch Camera" />
+      <TextInput
+        style={styles.input}
+        placeholder="Enter message"
+        value={message}
+        onChangeText={setMessage}
+      />
+      <Button onPress={sendMessage} title="Send Message" />
     </View>
-
   );
 }
 
@@ -55,6 +64,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+    padding: 20,
   },
   message: {
     textAlign: 'center',
@@ -63,20 +73,11 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  buttonContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    margin: 64,
-  },
-  button: {
-    flex: 1,
-    alignSelf: 'flex-end',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
 });
