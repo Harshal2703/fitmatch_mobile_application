@@ -1,83 +1,58 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useState } from 'react';
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import dgram from 'react-native-udp';
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Button, Image } from "react-native";
+import { Camera, useCameraDevice } from "react-native-vision-camera";
+import { captureRef } from "react-native-view-shot";
 
 export default function Index() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraFrontBack, setCameraFrontBack] = useState('front');
-  const [cameraOnOff, setCameraOnOff] = useState(false);
-  const [message, setMessage] = useState('');
+  const device = useCameraDevice("front");
+  const cameraRef = useRef(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [receivedImage, setReceivedImage] = useState("data:image/jpg;base64,");
 
-  const toggleCameraFrontBack = () => {
-    setCameraFrontBack(cameraFrontBack === 'front' ? 'back' : 'front');
-  };
-
-  const toggleCameraOnOff = () => {
-    setCameraOnOff(!cameraOnOff);
-  };
-
-  const sendMessage = () => {
-    try {
-      const socket = dgram.createSocket('udp4');
-      const messageString = String(message);
-      socket.send(messageString, undefined, undefined, 5000, '192.168.0.102', (err) => {
-        if (err) console.log(err);
-        else console.log('Message sent:', message);
-        socket.close();
-      });
-    } catch (error) {
-      console.log(error);
+  useEffect(() => {
+    if (cameraRef.current) {
+      console.log("Camera is ready!");
+    } else {
+      console.log("Waiting for camera...");
     }
+  }, [cameraOn]);
+
+  const startCamera = () => setCameraOn(true);
+  const stopCamera = () => setCameraOn(false);
+
+  const captureFrame = async () => {
+    try {
+      const rawFrame = await captureRef(cameraRef.current, { format: "jpg", quality: 0.1, result: "base64" });
+      setReceivedImage(`data:image/webp;base64,${rawFrame}`);
+    } catch (error) { }
   };
 
-  if (!permission) {
-    return <View />;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant Permission" />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      {cameraOnOff && <CameraView style={styles.camera} facing={cameraFrontBack} />}
-      <Button onPress={toggleCameraOnOff} title="Toggle Camera" />
-      <Button onPress={toggleCameraFrontBack} title="Switch Camera" />
-      <TextInput
-        style={styles.input}
-        placeholder="Enter message"
-        value={message}
-        onChangeText={setMessage}
-      />
-      <Button onPress={sendMessage} title="Send Message" />
+      <Text style={styles.text}>testing</Text>
+      {device ? (
+        <Camera
+          ref={cameraRef}
+          style={styles.camera}
+          device={device}
+          isActive={cameraOn}
+        />
+      ) : (
+        <Text style={styles.text}>No Camera Found</Text>
+      )}
+      <Image source={{ uri: receivedImage }} style={styles.image} />
+      <Button style={styles.button} onPress={startCamera} title="Start Camera" />
+      <Button style={styles.button} onPress={stopCamera} title="Stop Camera" />
+      <Button style={styles.button} onPress={captureFrame} title="Capture Frame" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  message: {
-    textAlign: 'center',
-    paddingBottom: 10,
-  },
-  camera: {
-    flex: 1,
-  },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    marginBottom: 10,
-    paddingHorizontal: 10,
-  },
+  container: { flex: 1, backgroundColor: "transparent" }, // Ensure background is transparent
+  image: { flex: 1 },
+  placeholder: { flex: 1, backgroundColor: "gray" }, // Show a placeholder instead of black screen
+  camera: { width: "80%", height: "40%", margin: 5 },
+  image: { width: "80%", height: "40%", margin: 5 },
 });
